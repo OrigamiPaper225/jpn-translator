@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import QGridLayout, QPushButton
 from PyQt5.QtCore import Qt
 import ast
 import pprint
+import config
 
 # Add webscrape button
 # Add use backup lyrics button
@@ -254,36 +255,12 @@ class Ui_MainWindow(object):
         self.label_10.setText(self._translate("MainWindow", "temporary"))
     
     def createLyricsButtons(self):
-        
-        
+        # Clears layout in case buttons already there
         self.clearLayout(self.buttonsLayout)
 
         _translate = QtCore.QCoreApplication.translate
         
-        
-        # array: self.newbuttons, self.jplyrics
-
-        
         self.label_3.setText(_translate("MainWindow", self.songtitle))
-        # if self.newsong:
-        #     print('in database')
-        #     newbuttons = self.lyrics[2]
-        #     jplyrics = self.lyrics[3]
-        #     self.songtitle = self.lyrics[1]
-        #     self.lyricsresult = self.lyrics[0]
-        # else:
-        #     print('not in database')
-        #     print(songrow)
-
-        #     newbuttons = self.lyrics[2]
-        #     jplyrics = self.lyrics[3]
-        #     self.songtitle = self.lyrics[1]
-        #     self.lyricsresult = self.lyrics[0]
-
-        
-        
-        
-        # tokenizerbuttons = [item for sublist in okaybuttons for item in sublist]
         joined_tokens = ["".join(item) for item in self.newbuttons]
         
         # tokenizing lyrics
@@ -299,7 +276,6 @@ class Ui_MainWindow(object):
         
         splitlyrics = [item.split(' ') for item in self.jplyrics]
         flattenedjplyrics = [item for sublist in splitlyrics for item in sublist]
-        #print(flattenedjplyrics)
         
         kanjiandromaji = list(zip(self.positions,flattenedjplyrics))
         print(kanjiandromaji)
@@ -344,26 +320,13 @@ class Ui_MainWindow(object):
                  self.clearLayout(item.layout())
     
     def retrieveDataBase(self):
-        ##self.lyricsresult needed (first index)
-        ##self.songtitle needed (column: Song)
-        ##self.newbuttons needed (column: Kanji List)
-        ##self.jplyrics needed (column: Romaji List)
 
         # Retrieves Song title
         self.songtitle = self.songrow.iloc[0,0]
-        #print(self.songtitle)
-        # try:
-        #     self.songtitle = self.songrow.at[0,"Song"]
-        # except:
-        #     self.search()
-        #     return
-
         # Retrieves Total lyrics
         self.lyrics = self.songrow.iloc[0,1]
-        #print(self.lyrics)
         # Retrieves lyrics only without title (used for buttons)
         self.lyricsresult = self.songrow.iloc[0,2]
-        #print(self.lyricsresult)
         # Retrieves romaji lyrics
 
         romaji = self.songrow.iloc[0,4]
@@ -373,51 +336,28 @@ class Ui_MainWindow(object):
             print(self.jplyrics)
             print('successful1!')
         except:
-            #try:
-            print(romaji + '\']]')
             self.jplyrics = ast.literal_eval(romaji +'\']]')
             print(self.jplyrics)
-            # except:
-            #     print('went to last resort')
-            #     self.search()
-            #     return 
         # Retrieves kanji lyrics
         kanjilist = self.songrow.iloc[0,3]
-        print(kanjilist)
         
         try:
             self.newbuttons = ast.literal_eval(kanjilist)
-            print('successful2!')
         except:
-            print(kanjilist+ '\']]')
             self.newbuttons = ast.literal_eval(kanjilist+ '\']]')
-            print(self.newbuttons)
-            print('probably RIP')
-        # print(type(self.songtitle))
-        # print(type(self.lyricsresult))
-        # print(type(self.jplyrics))
-        # print(type(self.newbuttons))
-        # print(self.songtitle)
-        # print(self.lyricsresult)
-        # print(self.jplyrics)
-        # print(self.newbuttons)
-        # print("uh oh")
-        # #print(self.songrow)
-        # print(self.songtitle)
-        #print(self.lyrics)
-        
-        # To be implemented later
-        # self.query = self.songrow["Query"].to_string()
-        # newbuttons = self.lyrics[2]
-        # jplyrics = self.lyrics[3]
         self.label_5.setText(self._translate("MainWindow", self.lyrics))
         self.createLyricsButtons()
     
     def checkIfInDataBase(self):
+        # Reloads the dataframe
         self.lyricsdf = pd.read_excel('datasets/lyricstest.xlsx')
+
+        #
         self.query = self.lineEdit.text()
         self.songrow = self.lyricsdf.loc[self.lyricsdf['Query'] == self.query]
        
+        # Checks if there's any matches, if so, will retrieve data from database
+        # If not, will run search function instead
         if self.songrow.size > 0:
             self.retrieveDataBase()
         else:
@@ -438,22 +378,19 @@ class Ui_MainWindow(object):
     def _buildQuery(self, sub_query):
         self.query = self.label_7.text() + sub_query
         self.label_7.setText(self.query)
-        #print(self.query)
         translation = self.translate(self.query)
-        #print(translation)
         self.label_9.setText(translation)
-        #self._view.setDisplayText(query)
     
     def translate(self, query):
+        # Uses MyMemory API to translate the query text
         url = "https://translated-mymemory---translation-memory.p.rapidapi.com/api/get"
 
         querystring = {"q":query,"langpair":"ja|en","onlyprivate":"0","mt":"1"}
 
         headers = {
-            "X-RapidAPI-Key": "075924a0c1mshd5170c677d51830p1d02d5jsn4a9747a377a5",
+            "X-RapidAPI-Key": config.api_key,
             "X-RapidAPI-Host": "translated-mymemory---translation-memory.p.rapidapi.com"
         }
-
         response = requests.request("GET", url, headers=headers, params=querystring)
         responsedict = json.loads(response.text)
         #print(responsedict["responseData"]["translatedText"])
@@ -461,10 +398,8 @@ class Ui_MainWindow(object):
 
     
     def search(self):
-        # Reloads the dataframe, might be better to edit dataframe, but save that for later
-        
-        
-        
+
+                
         # Runs if song name not in database:
         self.lyrics = animelyric.search_lyrics(self.query,lang="en")
         # Updates count if not already updated
@@ -472,14 +407,8 @@ class Ui_MainWindow(object):
         print(self.lyricsCount)
 
         self.lyricsresult = self.lyrics[0]
-        #print(self.lyricsresult)
         self.newbuttons = self.lyrics[2]
-        print(self.newbuttons)  
-        #print(self.newbuttons)
         self.jplyrics = self.lyrics[3]
-        print(self.jplyrics)
-        print(type(self.jplyrics))
-        #print(self.jplyrics)
         self.songtitle = self.lyrics[1]
 
         # Gets first line (aka title)
@@ -499,15 +428,11 @@ class Ui_MainWindow(object):
         lyricsSongCountCol = 'G' + str(self.lyricsCount)
         lyricsfirstindexresult = 'H' + str(self.lyricsCount)
 
+        # Updates cell values with song data
         self.sheet_lyrics[lyricstitleColumn].value = self.titleonly
-        
         self.sheet_lyrics[lyricslyricsColumn].value = self.lyrics[1]
-        # flattenedlyrics2 = [item for sublist in self.lyrics[2] for item in sublist]
-        # print(flattenedlyrics2)
         stringRepOfLyrics2 = pprint.pformat(self.lyrics[2])
-        #print(stringRepOfLyrics2)
         self.sheet_lyrics[lyricsnewbuttonsColumn].value = stringRepOfLyrics2
-        #self.sheet_lyrics[lyricsnewbuttonsColumn].value = self.lyrics[2]
         stringRepOfLyrics3 = pprint.pformat(self.lyrics[3])
         self.sheet_lyrics[lyricsjplyricsColumn].value = stringRepOfLyrics3
         stringRepOfLyrics0 = pprint.pformat(self.lyrics[0])
@@ -528,11 +453,6 @@ class Ui_MainWindow(object):
 
         self.lyricswb.save(self.lyricspath)
         self.lyricswb.close
-
-        
-
-        
-
         self.createLyricsButtons()
         # except:
         #     self.label_5.setText(_translate("MainWindow", "No Lyrics Found"))
@@ -540,6 +460,7 @@ class Ui_MainWindow(object):
     
     
     def save(self):
+        # Column positions for vocab spreadsheet
         vocabkanjiColumn = 'A' + str(self.vocabCount)
         vocabromajiColumn = 'C' + str(self.vocabCount)
         vocabtitleColumn = 'D' + str(self.vocabCount)
@@ -577,5 +498,3 @@ if __name__ == "__main__":
     MainWindow.show()
     
     sys.exit(app.exec_())
-    
-
